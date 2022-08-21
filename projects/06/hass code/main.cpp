@@ -44,10 +44,11 @@ int main(int argc, char** argv) {
     }
 
     bool verbose, veryVerbose, symTable;
-    if (!getFlags(argc, argv, symTable))
-        return 1;
+    // if (!getFlags(argc, argv, symTable))
+    //     return 1;
 
     string inputName(argv[argc - 1]);
+
     if (!isAsmFile(inputName))
         return 1;
 

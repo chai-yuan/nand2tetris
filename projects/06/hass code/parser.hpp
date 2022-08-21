@@ -23,6 +23,7 @@ class parser {
     string dest();  // 返回当前C指令的dest助记符
     string comp();  // 返回当前C指令的comp助记符
     string jump();  // 返回当前C指令的jump助记符
+    void reset();   // 重置
 
    private:
     istream& inputStream;         // 输入流
@@ -81,6 +82,12 @@ string parser::jump() {
     if (command.find(';') != string::npos)
         return command.substr(command.find(';') + 1);
     return "";
+}
+void parser::reset() {
+    inputStream.clear();
+    inputStream.seekg(0);
+    linePos = 0;
+    readNextLine();
 }
 
 bool parser::readNextLine() {
