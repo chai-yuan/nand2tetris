@@ -14,9 +14,7 @@ class assembler {
     assembler(istream& inputStream,
               string inputName,
               ostream& outputStream,
-              string outputName,
-              bool verbose = false,
-              bool veryVerbose = false);
+              string outputName);
     // 执行汇编操作
     void assemble();
     void assembleFirstPass();   // 第一遍汇编
@@ -33,13 +31,6 @@ class assembler {
     code code;               /*转换为代码 */
     symbolTable symbolTable; /*符号表 */
 
-    bool verbose;     /*详细模式的标志*/
-    bool veryVerbose; /*“非常详细”模式的标志 */
-
-    const string assemblerTitle;    /**< Assembler title. */
-    const string assemblerSubtitle; /**< Assembler subtitle. */
-    const string assemblerVersion;  /**< Assembler version. */
-
     void assembleACommand();   // 将A指令写入文件
     void assembleCCommand();   // 将C指令写入文件
     void PredefinedSymbols();  // 预定义符号
@@ -48,20 +39,12 @@ class assembler {
 assembler::assembler(istream& inputStream,
                      string inputName,
                      ostream& outputStream,
-                     string outputName,
-                     bool verbose,
-                     bool veryVerbose)
+                     string outputName)
     : inputStream(inputStream),
       outputStream(outputStream),
       inputName(inputName),
       outputName(outputName),
-      parser(inputStream),
-      verbose(verbose),
-      veryVerbose(veryVerbose),
-      assemblerTitle("hass"),
-      assemblerSubtitle(
-          "hack assembler symbol-less version (nand2tetris, chap. 6)"),
-      assemblerVersion("1.0") {}
+      parser(inputStream) {}
 void assembler::assemble() {
     PredefinedSymbols();  // 处理预定义符号
     assembleFirstPass();

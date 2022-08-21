@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "*.nas": "assembly",
-        "fstream": "cpp",
-        "iosfwd": "cpp",
-        "string": "cpp",
-        "string_view": "cpp"
-    }
-}
