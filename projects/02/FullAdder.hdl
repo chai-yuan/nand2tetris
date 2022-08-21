@@ -1,0 +1,11 @@
+/**
+ * Computes the sum of three bits.
+ */
+CHIP FullAdder {
+    IN a, b, c;     // 可以串联获得多位加法器,c可用于表示上一位进位
+    OUT sum,carry;   
+    PARTS:
+        HalfAdder(a = a, b = b, sum = s1, carry = c1);
+        HalfAdder(a = s1, b = c, sum = sum, carry = c2);
+        Xor(a = c1, b = c2, out = carry);   // 对分步进位求和获得进位
+}

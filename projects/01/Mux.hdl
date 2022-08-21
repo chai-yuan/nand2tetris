@@ -1,0 +1,17 @@
+/** 
+ * Multiplexor:
+ * out = a if sel == 0
+ *       b otherwise
+ */
+
+CHIP Mux {
+    IN a, b, sel;
+    OUT out;
+
+    PARTS:
+        Not(in = sel, out = notSel);    // 对选择信号反转
+        // 如果选择的不是a或b,则o1或o2必为0
+        And(a = a, b = notSel, out = o1);   // 如果sel==0 输出 a
+        And(a = b, b = sel, out = o2);      // 如果sel==1 输出 b
+        Or(a = o1, b = o2, out = out);  // 输出
+}

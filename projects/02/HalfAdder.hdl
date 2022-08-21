@@ -1,0 +1,11 @@
+/**
+ * Computes the sum of two bits.
+ */
+CHIP HalfAdder {
+    IN a, b;    
+    OUT sum,carry;  // 输出和进位
+
+    PARTS:
+        Xor(a = a, b = b, out = sum);   // 显而易见，求和符合异或运算
+        And(a = a, b = b, out = carry);
+}
