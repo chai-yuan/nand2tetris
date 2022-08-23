@@ -1,5 +1,4 @@
 # nand2tetris
-nand2tetris
 
 第六章之后的代码使用C++实现
 
