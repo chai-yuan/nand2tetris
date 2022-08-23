@@ -54,11 +54,6 @@ string removePath(string fileName) {
         fileName.erase(fileName.rfind("/"));
     if (fileName.rfind("/") != string::npos)
         fileName.erase(0, fileName.rfind("/") + 1);
-
-    if (fileName.back() == '\\')
-        fileName.erase(fileName.rfind("\\"));
-    if (fileName.rfind("\\") != string::npos)
-        fileName.erase(0, fileName.rfind("\\") + 1);
     return fileName;
 }
 

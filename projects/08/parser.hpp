@@ -71,15 +71,27 @@ VmCommandType parser::commandType() {
         return VmCommandType::C_PUSH;
     if (cmds.front() == "pop")
         return VmCommandType::C_POP;
+    if (cmds.front() == "label")
+        return VmCommandType::C_LABEL;
+    if (cmds.front() == "if-goto")
+        return VmCommandType::C_IF;
+    if (cmds.front() == "goto")
+        return VmCommandType::C_GOTO;
+    if (cmds.front() == "function")
+        return VmCommandType::C_FUNCTION;
+    if (cmds.front() == "return")
+        return VmCommandType::C_RETURN;
+    if (cmds.front() == "call")
+        return VmCommandType::C_CALL;
     return VmCommandType::C_ARITHMETIC;
 }
 string parser::arg1() {
     if (commandType() == VmCommandType::C_ARITHMETIC)
         return cmds.front();
-    return cmds.at(1);
+    return cmds[1];
 }
 int parser::arg2() {
-    return stoi(cmds.at(2));
+    return stoi(cmds[2]);
 }
 
 bool parser::nextValidLine() {
