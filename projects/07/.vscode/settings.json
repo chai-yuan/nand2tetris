@@ -1,6 +1,10 @@
 {
     "files.associations": {
         "*.nas": "assembly",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "iosfwd": "cpp",
+        "typeindex": "cpp",
+        "typeinfo": "cpp",
+        "ostream": "cpp"
     }
 }

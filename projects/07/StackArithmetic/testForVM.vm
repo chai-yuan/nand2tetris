@@ -1,2 +1,7 @@
 // 这是对vm语言的练习测试文件
 
+push constant 23
+push constant 8
+add
+push constant 4
+sub

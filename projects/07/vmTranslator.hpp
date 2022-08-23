@@ -9,19 +9,36 @@ using namespace std;
 
 class vmTranslator {
    public:
-    vmTranslator(string inputName, ostream& outputStream);
+    vmTranslator(istream& inputStream,
+                 ostream& outputStream,
+                 string programName);
     void translate();
 
    private:
-    string inputName;
+    string programName;
+    istream& inputStream;
     ostream& outputStream;
 };
 
-vmTranslator::vmTranslator(string inputName, ostream& outputStream)
-    : inputName(inputName), outputStream(outputStream) {}
+vmTranslator::vmTranslator(istream& inputStream,
+                           ostream& outputStream,
+                           string programName)
+    : inputStream(inputStream),
+      outputStream(outputStream),
+      programName(programName) {}
 
 void vmTranslator::translate() {
-    codeWriter codeWriter(outputStream, inputName);
+    parser parser(inputStream);
+    codeWriter codeWriter(outputStream, programName);
+
+    while (parser.advance()) {
+        if (parser.commandType() == VmCommandType::C_ARITHMETIC) {
+            codeWriter.writeArithmetic(parser.arg1());
+        } else {
+            codeWriter.writePushPop(parser.commandType(), parser.arg1(),
+                                    parser.arg2());
+        }
+    }
 }
 
 #endif
