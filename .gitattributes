@@ -1,0 +1,4 @@
+*.tst linguist-language=cpp
+*.cmp linguist-language=cpp
+*.html linguist-language=cpp
+*.cpp linguist-language=cpp
