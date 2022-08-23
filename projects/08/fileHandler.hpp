@@ -33,6 +33,22 @@ bool isDir(string inputName) {
     return S_ISDIR(buf.st_mode);
 }
 
+// 从目录中获取指定后缀的文件列表
+vector<string> getFileFromDir(string inputName, string extension) {
+    DIR* dir = NULL;
+    dirent* dirContent;
+    vector<string> ret;
+
+    dir = opendir(inputName.c_str());
+    while ((dirContent = readdir(dir)) != NULL) {
+        string fileName(dirContent->d_name);
+        if (fileName.find(extension) != string::npos)
+            ret.push_back(fileName);
+    }
+
+    return ret;
+}
+
 string removePath(string fileName) {
     if (fileName.back() == '/')
         fileName.erase(fileName.rfind("/"));

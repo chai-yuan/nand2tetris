@@ -4,6 +4,10 @@
 using namespace std;
 
 int main(int argc, char** argv) {
+    // string inputName("./FunctionCalls/NestedCall/");
+    // if (FileHandler::isDir(inputName))
+    //     FileHandler::getFileFromDir(inputName, ".vm");
+
     if (argc == 1) {
         cerr << "usage: vm2hack fileName.vm|directoryName" << endl;
         return 1;
