@@ -4,12 +4,13 @@
 #include <fstream>
 #include <string>
 #include <vector>
+// #include "compilationEngine.hpp"
 #include "jackTokenizer.hpp"
 using namespace std;
 
-class analyzer {
+class Analyzer {
    public:
-    analyzer(vector<string> inputNameList, string outputName);
+    Analyzer(vector<string> inputNameList, string outputName);
     void analyzerCode();
 
    private:
@@ -17,13 +18,13 @@ class analyzer {
     string outputName;
 };
 
-analyzer::analyzer(vector<string> inputNameList, string outputName)
+Analyzer::Analyzer(vector<string> inputNameList, string outputName)
     : inputNameList(inputNameList), outputName(outputName) {}
-void analyzer::analyzerCode() {
+void Analyzer::analyzerCode() {
     ifstream inputFile(inputNameList[0]);
     ofstream outputFile(outputName);
 
-    tokenizer tokenizer(inputFile);
+    Tokenizer tokenizer(inputFile);
     while (tokenizer.advance()) {
         switch (tokenizer.tokenType()) {
             case TokenType::kKEYWORD:
@@ -35,11 +36,11 @@ void analyzer::analyzerCode() {
                            << endl;
                 break;
             case TokenType::kINT_CONST:
-                outputFile << "<integerConstant> " << tokenizer.token
+                outputFile << "<integerConstant> " << tokenizer.intVal()
                            << " </integerConstant>" << endl;
                 break;
             case TokenType::kSTRING_CONST:
-                outputFile << "<stringConstant> " << tokenizer.token
+                outputFile << "<stringConstant> " << tokenizer.stringVal()
                            << " </stringConstant>" << endl;
                 break;
             case TokenType::kIDENTIFIER:
@@ -48,6 +49,8 @@ void analyzer::analyzerCode() {
                 break;
         }
     }
+
+    // outputFile.close();
 }
 
 #endif

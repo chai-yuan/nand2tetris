@@ -7,15 +7,17 @@
 #include "globalDefine.h"
 using namespace std;
 
-class tokenizer {
+class Tokenizer {
    public:
-    tokenizer(istream& inputStream);
+    Tokenizer(istream& inputStream);
     bool hasMoreTokens();
     bool advance();
     TokenType tokenType();  // 当前字元的类型
     Keyword keyword();      // 当前字元的关键字
     char symbol();          // 返回当前字元的符号
     string identifier();    // 返回当前字元的标识符
+    int intVal();
+    string stringVal();
 
    public:
     istream& inputStream;
@@ -34,10 +36,10 @@ class tokenizer {
     bool isIdentifier(string tok);
 };
 
-tokenizer::tokenizer(istream& inputStream) : inputStream(inputStream) {
+Tokenizer::Tokenizer(istream& inputStream) : inputStream(inputStream) {
     readNextLine();
 }
-bool tokenizer::advance() {
+bool Tokenizer::advance() {
     if (!nextValidChar())
         return false;
     token.clear();
@@ -47,15 +49,22 @@ bool tokenizer::advance() {
         ++it;
         return true;
     }
-    // 非符号
-    while (it != currentLine.end() && !isspace(*it) && !isSymbol(*it)) {
+    // 字符串
+    if (*it == '"')
+        do {
+            token.append(1, *it);
+            it++;
+        } while (it != currentLine.end() and *it != '"');
+
+    // 其他符号
+    while (it != currentLine.end() and !isspace(*it) and !isSymbol(*it)) {
         token.append(1, *it);
         ++it;
     }
 
     return true;
 }
-TokenType tokenizer::tokenType() {
+TokenType Tokenizer::tokenType() {
     if (isKeyword(token))
         return TokenType::kKEYWORD;
     if (isSymbol(token[0]))
@@ -68,7 +77,7 @@ TokenType tokenizer::tokenType() {
         return TokenType::kIDENTIFIER;
     return TokenType::kUNKNOWN;
 }
-Keyword tokenizer::keyword() {
+Keyword Tokenizer::keyword() {
     if (token == "class")
         return Keyword::kCLASS;
     if (token == "method")
@@ -112,14 +121,23 @@ Keyword tokenizer::keyword() {
 
     return Keyword::kTHIS;
 }
-char tokenizer::symbol() {
+char Tokenizer::symbol() {
     return token[0];
 }
-string tokenizer::identifier() {
+string Tokenizer::identifier() {
     return token;
 }
+int Tokenizer::intVal() {
+    return stoi(this->token);
+}
+string Tokenizer::stringVal() {
+    string ret;
+    for (int i = 1; i < this->token.size() - 1; i++)
+        ret.append(1, token[i]);
+    return ret;
+}
 
-bool tokenizer::readNextLine() {
+bool Tokenizer::readNextLine() {
     if (getline(inputStream, currentLine)) {
         linePos++;
         it = currentLine.begin();
@@ -127,7 +145,7 @@ bool tokenizer::readNextLine() {
     }
     return false;
 }
-bool tokenizer::nextValidLine() {
+bool Tokenizer::nextValidLine() {
     if (!readNextLine())
         return false;
     while (true) {
@@ -139,7 +157,7 @@ bool tokenizer::nextValidLine() {
     }
     return true;
 }
-bool tokenizer::nextValidChar() {
+bool Tokenizer::nextValidChar() {
     while (isspace(*it) or it == currentLine.end()) {
         if (*it == '\n' or it == currentLine.end()) {
             if (!nextValidLine())
@@ -151,7 +169,7 @@ bool tokenizer::nextValidChar() {
         return false;
     return true;
 }
-bool tokenizer::skipComments() {
+bool Tokenizer::skipComments() {
     if (*it != '/')
         return true;
     ++it;
@@ -175,23 +193,22 @@ bool tokenizer::skipComments() {
     --it;
     return true;
 }
-bool tokenizer::isKeyword(string s) {
+bool Tokenizer::isKeyword(string s) {
     return jackKeyword.count(s);
 }
-bool tokenizer::isSymbol(char c) {
+bool Tokenizer::isSymbol(char c) {
     return jackSymbol.count(c);
 }
-bool tokenizer::isStringConst(string tok) {
+bool Tokenizer::isStringConst(string tok) {
     if (tok.front() == '\"' && tok.back() == '\"') {
         string::const_iterator it = tok.begin();
-        while (it != tok.end() &&
-               *it != '\n')  // Jack str const cannot have a new line
+        while (it != tok.end() && *it != '\n')
             ++it;
         return it == tok.end();
     }
     return false;
 }
-bool tokenizer::isIntConst(string tok) {
+bool Tokenizer::isIntConst(string tok) {
     string::const_iterator it = tok.begin();
     while (it != tok.end() && isdigit(*it))
         ++it;
@@ -201,7 +218,7 @@ bool tokenizer::isIntConst(string tok) {
     }
     return false;
 }
-bool tokenizer::isIdentifier(string tok) {
+bool Tokenizer::isIdentifier(string tok) {
     if (isdigit(tok.front()))
         return false;
     string::const_iterator it = tok.begin();
