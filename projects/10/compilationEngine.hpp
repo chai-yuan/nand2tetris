@@ -28,6 +28,9 @@ class CompilationEngine {
     void compileTerm();
     void compileExpressionList();
 
+    void compileSubroutineBody();
+    void compileSubroutineCall();
+
    private:
     ostream& outputStream;
     Tokenizer& tokenizer;
@@ -40,11 +43,14 @@ class CompilationEngine {
     void writeToFile(string tag, string text = "");
     void getNextToken();
     void compilationError(string what);
+
+    bool checkStatementKeyword(string key);
 };
 CompilationEngine::CompilationEngine(Tokenizer& tokenizer,
                                      ostream& outputStream)
     : tokenizer(tokenizer), outputStream(outputStream) {}
 void CompilationEngine::compileClass() {
+    // 'class' className '{' classVarDec* subroutineDec* '}'
     writeToFile("class");
     getNextToken();
     readKeyword(Keyword::kCLASS, "class");
@@ -72,19 +78,201 @@ void CompilationEngine::compileClass() {
         compilationError(
             "jack language does not allow anything else beyond the class!");
 }
-void CompilationEngine::compileClassVarDec(){};
-void CompilationEngine::compileSubroutine(){};
-void CompilationEngine::compileParameterList(){};
-void CompilationEngine::compileVarDec(){};
-void CompilationEngine::compileStatements(){};
-void CompilationEngine::compileDo(){};
-void CompilationEngine::compileLet(){};
+void CompilationEngine::compileClassVarDec() {
+    // ('static' | 'field') type varName (',' varName)* ';'
+    writeToFile("classVarDec");
+
+    if (tokenizer.keyword() == Keyword::kFIELD)
+        readKeyword(Keyword::kFIELD, "field");
+    else
+        readKeyword(Keyword::kSTATIC, "static");
+
+    getNextToken();
+    readType();
+    getNextToken();
+    readIdentifier();
+    getNextToken();
+
+    while (tokenizer.tokenType() == TokenType::kSYMBOL and
+           tokenizer.symbol() == ',') {
+        readSymbol(',');
+        getNextToken();
+        readIdentifier();
+        getNextToken();
+    }
+
+    readSymbol(';');
+    writeToFile("/classVarDec");
+    getNextToken();
+}
+void CompilationEngine::compileSubroutine() {
+    // ('constructor' | 'function' | 'method') ('void' | type) subroutineName
+    // '(' parameterList ')' subroutineBody
+    writeToFile("subroutineDec");
+
+    if (tokenizer.keyword() == Keyword::kCONSTRUCTOR)
+        readKeyword(Keyword::kCONSTRUCTOR, "constructor");
+    else if (tokenizer.keyword() == Keyword::kFUNCTION)
+        readKeyword(Keyword::kFUNCTION, "function");
+    else
+        readKeyword(Keyword::kMETHOD, "method");
+
+    getNextToken();
+
+    if (tokenizer.tokenType() == TokenType::kKEYWORD and
+        tokenizer.keyword() == Keyword::kVOID)
+        readKeyword(Keyword::kVOID, "void");
+    else
+        readType();
+
+    getNextToken();
+    readIdentifier();
+    getNextToken();
+    readSymbol('(');
+    getNextToken();
+    compileParameterList();  // tag
+
+    readSymbol(')');
+    getNextToken();
+    compileSubroutineBody();
+
+    writeToFile("/subroutineDec");
+}
+void CompilationEngine::compileParameterList() {
+    // ((type varName)(',' type varName)*)?
+    writeToFile("parameterList");
+    if (tokenizer.tokenType() != TokenType::kSYMBOL) {
+        readType();
+        getNextToken();
+        readIdentifier();
+        getNextToken();
+
+        while (tokenizer.tokenType() == TokenType::kSYMBOL and
+               tokenizer.symbol() == ',') {
+            readSymbol(',');
+            getNextToken();
+            readType();
+            getNextToken();
+            readIdentifier();
+            getNextToken();
+        }
+    }
+    writeToFile("/parameterList");
+}
+void CompilationEngine::compileVarDec() {
+    // 'var' type varName (',' varName)* ';'
+    writeToFile("varDec");
+
+    readKeyword(Keyword::kVAR, "var");
+    getNextToken();
+    readType();
+    getNextToken();
+    readIdentifier();
+    getNextToken();
+    while (tokenizer.tokenType() == TokenType::kSYMBOL and
+           tokenizer.symbol() == ',') {
+        readSymbol(',');
+        getNextToken();
+        readIdentifier();
+        getNextToken();
+    }
+    readSymbol(';');
+
+    writeToFile("/varDec");
+    getNextToken();
+}
+void CompilationEngine::compileStatements() {
+    // statements: statement*
+    //    statement: letStatement | ifStatement | whileStatement | doStatement |
+    //    returnStatement
+    writeToFile("statements");
+
+    while (tokenizer.tokenType() == TokenType::kKEYWORD and
+           checkStatementKeyword(tokenizer.token)) {
+        switch (tokenizer.keyword()) {
+            case Keyword::kLET:
+                compileLet();
+                break;
+            case Keyword::kDO:
+                compileDo();
+                break;
+            case Keyword::kIF:
+                compileIf();
+                break;
+            case Keyword::kWHILE:
+                compileWhile();
+                break;
+            case Keyword::kRETURN:
+                compileReturn();
+                break;
+            default:
+                break;
+        }
+    }
+
+    writeToFile("/statements");
+}
+void CompilationEngine::compileDo() {
+    // 'do' subroutineCall ';'
+    writeToFile("doStatement");
+
+    readKeyword(Keyword::kDO, "do");
+    getNextToken();
+    compileSubroutineCall();
+    readSymbol(';');
+
+    writeToFile("/doStatement");
+    getNextToken();
+}
+void CompilationEngine::compileLet() {
+    // 'let' varName('[' expression ']')? '=' expression ';'
+    writeToFile("letStatement");
+
+    readKeyword(Keyword::kLET, "let");
+    getNextToken();
+    readIdentifier();
+    getNextToken();
+
+    if (tokenizer.tokenType() == TokenType::kSYMBOL and
+        tokenizer.symbol() == '[') {
+        readSymbol('[');
+        getNextToken();
+        compileExpression();
+        readSymbol(']');
+        getNextToken();
+    }
+
+    readSymbol('=');
+    getNextToken();
+    compileExpression();
+    readSymbol(';');
+
+    writeToFile("/letStatement");
+    getNextToken();
+}
 void CompilationEngine::compileWhile(){};
 void CompilationEngine::compileReturn(){};
 void CompilationEngine::compileIf(){};
 void CompilationEngine::compileExpression(){};
 void CompilationEngine::compileTerm(){};
 void CompilationEngine::compileExpressionList(){};
+
+void CompilationEngine::compileSubroutineBody() {
+    // '{' varDec* statements '}'
+    writeToFile("subroutineBody");
+    readSymbol('{');
+    getNextToken();
+
+    while (tokenizer.tokenType() == TokenType::kKEYWORD and
+           tokenizer.keyword() == Keyword::kVAR)
+        compileVarDec();
+
+    compileStatements();
+    readSymbol('}');
+    writeToFile("/subroutineBody");
+    getNextToken();
+}
+void CompilationEngine::compileSubroutineCall(){};
 
 void CompilationEngine::readKeyword(Keyword type, string name) {
     if (tokenizer.tokenType() == TokenType::kKEYWORD and
@@ -155,5 +343,10 @@ void CompilationEngine::getNextToken() {
 void CompilationEngine::compilationError(string what) {
     cerr << "Compilation ERROR: " << what << endl;
     exit(1);
+}
+
+bool CompilationEngine::checkStatementKeyword(string key) {
+    return (key == "let" || key == "if" || key == "while" || key == "do" ||
+            key == "return");
 }
 #endif
