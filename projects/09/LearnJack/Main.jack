@@ -6,15 +6,21 @@
 /** Hello World program. */
 class Main {
    function void main() {
-      var int size;
+      var int size,num;
+      var String s;
       /* Prints some text using the standard library. */
       do Output.printString("Hello world!");
       do Output.println();      // New line
       
-      let size = Keyboard.readInt("input the size:");
-      do Output.println();
-      do Output.printInt(size);
-      do Screen.drawCircle(100,100,size);
+      let num = 1;
+      while(size < 10){
+         let size = size + 1;
+         let num = num * 10;
+         do Output.printInt(size);
+         do Output.printString(" : ");
+         do Output.printInt(num);
+         do Output.println();      // New line
+      }
       return;
    }
 }
