@@ -12,7 +12,6 @@ using namespace std;
 class CompilationEngine {
    public:
     CompilationEngine(Tokenizer& tokenizer, ostream& outputStream);
-    void compile();
     void compileClass();
     void compileClassVarDec();
     void compileSubroutine();
@@ -40,11 +39,14 @@ class CompilationEngine {
     void readStringConst();
     void readIntConst();
     void readType();
+    void readOp();
+    void readUnaryOp();
     void writeToFile(string tag, string text = "");
     void getNextToken();
     void compilationError(string what);
 
     bool checkStatementKeyword(string key);
+    bool checkOperator(char c);
 };
 CompilationEngine::CompilationEngine(Tokenizer& tokenizer,
                                      ostream& outputStream)
@@ -250,12 +252,185 @@ void CompilationEngine::compileLet() {
     writeToFile("/letStatement");
     getNextToken();
 }
-void CompilationEngine::compileWhile(){};
-void CompilationEngine::compileReturn(){};
-void CompilationEngine::compileIf(){};
-void CompilationEngine::compileExpression(){};
-void CompilationEngine::compileTerm(){};
-void CompilationEngine::compileExpressionList(){};
+void CompilationEngine::compileWhile() {
+    // 'while' '(' expression ')' '{' statements '}'
+    writeToFile("whileStatement");
+
+    readKeyword(Keyword::kWHILE, "while");
+    getNextToken();
+    readSymbol('(');
+    getNextToken();
+    compileExpression();
+    readSymbol(')');
+    getNextToken();
+    readSymbol('{');
+    getNextToken();
+    compileStatements();
+    readSymbol('}');
+
+    writeToFile("/whileStatement");
+    getNextToken();
+}
+void CompilationEngine::compileReturn() {
+    // 'return' expression? ';'
+    writeToFile("returnStatement");
+
+    readKeyword(Keyword::kRETURN, "return");
+    getNextToken();
+
+    if (tokenizer.tokenType() != TokenType::kSYMBOL ||
+        (tokenizer.tokenType() == TokenType::kSYMBOL &&
+         tokenizer.symbol() != ';'))
+        compileExpression();
+
+    readSymbol(';');
+    writeToFile("/returnStatement");
+    getNextToken();
+}
+void CompilationEngine::compileIf() {
+    // 'if' '(' expression ')' '{' statements '}'
+    //  ('else' '{' statements '}')?
+    writeToFile("ifStatement");
+
+    readKeyword(Keyword::kIF, "if");
+    getNextToken();
+    readSymbol('(');
+    getNextToken();
+    compileExpression();
+    readSymbol(')');
+    getNextToken();
+    readSymbol('{');
+    getNextToken();
+    compileStatements();
+    readSymbol('}');
+    getNextToken();
+
+    if (tokenizer.tokenType() == TokenType::kKEYWORD and
+        tokenizer.keyword() == Keyword::kELSE) {
+        readKeyword(Keyword::kELSE, "else");
+        getNextToken();
+        readSymbol('{');
+        getNextToken();
+        compileStatements();
+        readSymbol('}');
+        getNextToken();
+    }
+
+    writeToFile("/ifStatement");
+}
+void CompilationEngine::compileExpression() {
+    // term (op term)*
+    writeToFile("expression");
+    compileTerm();
+    while (tokenizer.tokenType() == TokenType::kSYMBOL and
+           checkOperator(tokenizer.symbol())) {
+        readOp();
+        getNextToken();
+        compileTerm();
+    }
+
+    writeToFile("/expression");
+}
+void CompilationEngine::compileTerm() {
+    //  integerConst | stringConst | keywordConst |
+    //    varName | varName '[' expression ']' | subroutineCall |
+    //    '(' expression ')' | unaryOp term
+    writeToFile("term");
+
+    switch (tokenizer.tokenType()) {
+        case TokenType::kINT_CONST:
+            readIntConst();
+            break;
+        case TokenType::kSTRING_CONST:
+            readStringConst();
+            break;
+        case TokenType::kKEYWORD: {
+            switch (tokenizer.keyword()) {
+                case Keyword::kTRUE:
+                    readKeyword(Keyword::kTRUE, "true");
+                    break;
+                case Keyword::kFALSE:
+                    readKeyword(Keyword::kFALSE, "false");
+                    break;
+                case Keyword::kNULL:
+                    readKeyword(Keyword::kNULL, "null");
+                    break;
+                case Keyword::kTHIS:
+                    readKeyword(Keyword::kTHIS, "this");
+                    break;
+            }
+            break;
+        }
+        case TokenType::kIDENTIFIER: {
+            readIdentifier();
+            getNextToken();
+            if (tokenizer.tokenType() == TokenType::kSYMBOL and
+                tokenizer.symbol() == '[') {
+                readSymbol('[');
+                getNextToken();
+                compileExpression();
+                readSymbol(']');
+                getNextToken();
+            } else if (tokenizer.tokenType() == TokenType::kSYMBOL and
+                       tokenizer.symbol() == '(') {
+                readSymbol('(');
+                getNextToken();
+                compileExpressionList();
+                readSymbol(')');
+                getNextToken();
+            } else if (tokenizer.tokenType() == TokenType::kSYMBOL and
+                       tokenizer.symbol() == '.') {
+                readSymbol('.');
+                getNextToken();
+                readIdentifier();
+                getNextToken();
+                readSymbol('(');
+                getNextToken();
+                compileExpressionList();
+                readSymbol(')');
+                getNextToken();
+            }
+            writeToFile("/term");
+            return;
+        }
+        case TokenType::kSYMBOL:
+            if (tokenizer.symbol() == '(') {
+                readSymbol('(');
+                getNextToken();
+                compileExpression();
+                readSymbol(')');
+
+            } else {
+                readUnaryOp();
+                getNextToken();
+                compileTerm();
+                writeToFile("/term");
+                return;
+            }
+            break;
+        default:
+            break;
+    }
+
+    getNextToken();
+    writeToFile("/term");
+}
+void CompilationEngine::compileExpressionList() {
+    // (expression(',' expression)*)?
+    writeToFile("expressionList");
+
+    if (tokenizer.tokenType() != TokenType::kSYMBOL ||
+        (tokenizer.symbol() == '('))
+        compileExpression();
+    while (tokenizer.tokenType() == TokenType::kSYMBOL &&
+           tokenizer.symbol() == ',') {
+        readSymbol(',');
+        getNextToken();
+        compileExpression();
+    }
+
+    writeToFile("/expressionList");
+}
 
 void CompilationEngine::compileSubroutineBody() {
     // '{' varDec* statements '}'
@@ -272,7 +447,32 @@ void CompilationEngine::compileSubroutineBody() {
     writeToFile("/subroutineBody");
     getNextToken();
 }
-void CompilationEngine::compileSubroutineCall(){};
+void CompilationEngine::compileSubroutineCall() {
+    //  subroutineName '(' expressionList ')' |
+    //   (className | varName) '.' subroutineName '(' expression ')'
+
+    readIdentifier();
+    getNextToken();
+
+    if (tokenizer.tokenType() == TokenType::kSYMBOL &&
+        tokenizer.symbol() == '(') {
+        readSymbol('(');
+        getNextToken();
+        compileExpressionList();
+        readSymbol(')');
+    } else {
+        readSymbol('.');
+        getNextToken();
+        readIdentifier();
+        getNextToken();
+        readSymbol('(');
+        getNextToken();
+        compileExpressionList();
+        readSymbol(')');
+    }
+
+    getNextToken();
+}
 
 void CompilationEngine::readKeyword(Keyword type, string name) {
     if (tokenizer.tokenType() == TokenType::kKEYWORD and
@@ -296,7 +496,7 @@ void CompilationEngine::readIdentifier() {
 }
 void CompilationEngine::readStringConst() {
     if (tokenizer.tokenType() == TokenType::kSTRING_CONST)
-        writeToFile("stringConstant", tokenizer.token);
+        writeToFile("stringConstant", tokenizer.stringVal());
     else
         compilationError("");
 }
@@ -327,6 +527,26 @@ void CompilationEngine::readType() {
     } else
         readIdentifier();
 }
+void CompilationEngine::readOp() {
+    if (tokenizer.tokenType() == TokenType::kSYMBOL) {
+        char sym = tokenizer.symbol();
+        if (checkOperator(sym)) {
+            writeToFile("symbol", tokenizer.token);
+            return;
+        }
+    }
+    compilationError("op");
+}
+void CompilationEngine::readUnaryOp() {
+    if (tokenizer.tokenType() == TokenType::kSYMBOL) {
+        char sym = tokenizer.symbol();
+        if (sym == '-' || sym == '~') {
+            writeToFile("symbol", tokenizer.token);
+            return;
+        }
+    }
+    compilationError("unary op");
+}
 
 void CompilationEngine::writeToFile(string tag, string text) {
     if (text.empty())
@@ -348,5 +568,9 @@ void CompilationEngine::compilationError(string what) {
 bool CompilationEngine::checkStatementKeyword(string key) {
     return (key == "let" || key == "if" || key == "while" || key == "do" ||
             key == "return");
+}
+bool CompilationEngine::checkOperator(char ch) {
+    return (ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '&' ||
+            ch == '|' || ch == '<' || ch == '>' || ch == '=');
 }
 #endif

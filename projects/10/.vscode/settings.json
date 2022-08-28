@@ -8,6 +8,10 @@
         "iomanip": "cpp",
         "iostream": "cpp",
         "ostream": "cpp",
-        "sstream": "cpp"
+        "sstream": "cpp",
+        "bitset": "cpp",
+        "limits": "cpp",
+        "ratio": "cpp",
+        "type_traits": "cpp"
     }
 }
