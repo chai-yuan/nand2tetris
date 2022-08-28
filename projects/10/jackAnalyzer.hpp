@@ -10,52 +10,28 @@ using namespace std;
 
 class Analyzer {
    public:
-    Analyzer(vector<string> inputNameList, string outputName);
+    Analyzer(vector<string> inputNameList, vector<string> outputNameList);
     void analyzerCode();
 
    private:
     vector<string> inputNameList;
-    string outputName;
+    vector<string> outputNameList;
 };
 
-Analyzer::Analyzer(vector<string> inputNameList, string outputName)
-    : inputNameList(inputNameList), outputName(outputName) {}
+Analyzer::Analyzer(vector<string> inputNameList, vector<string> outputNameList)
+    : inputNameList(inputNameList), outputNameList(outputNameList) {}
 void Analyzer::analyzerCode() {
-    ifstream inputFile(inputNameList[0]);
-    ofstream outputFile(outputName);
+    for (int i = 0; i < inputNameList.size(); i++) {
+        ifstream inputFile(inputNameList[i]);
+        ofstream outputFile(outputNameList[i]);
 
-    Tokenizer tokenizer(inputFile);
-    CompilationEngine engine(tokenizer, outputFile);
+        Tokenizer tokenizer(inputFile);
+        CompilationEngine engine(tokenizer, outputFile);
+        engine.compileClass();
 
-    engine.compileClass();
-    // while (tokenizer.advance()) {
-    //     switch (tokenizer.tokenType()) {
-    //         case TokenType::kKEYWORD:
-    //             outputFile << "<keyword> " << tokenizer.token << "
-    //             </keyword>"
-    //                        << endl;
-    //             break;
-    //         case TokenType::kSYMBOL:
-    //             outputFile << "<symbol> " << tokenizer.symbol() << "
-    //             </symbol>"
-    //                        << endl;
-    //             break;
-    //         case TokenType::kINT_CONST:
-    //             outputFile << "<integerConstant> " << tokenizer.intVal()
-    //                        << " </integerConstant>" << endl;
-    //             break;
-    //         case TokenType::kSTRING_CONST:
-    //             outputFile << "<stringConstant> " << tokenizer.stringVal()
-    //                        << " </stringConstant>" << endl;
-    //             break;
-    //         case TokenType::kIDENTIFIER:
-    //             outputFile << "<identifier> " << tokenizer.identifier()
-    //                        << " </identifier>" << endl;
-    //             break;
-    //     }
-    // }
-
-    outputFile.close();
+        inputFile.close();
+        outputFile.close();
+    }
 }
 
 #endif

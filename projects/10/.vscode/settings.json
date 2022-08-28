@@ -12,6 +12,7 @@
         "bitset": "cpp",
         "limits": "cpp",
         "ratio": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "vector": "cpp"
     }
 }
