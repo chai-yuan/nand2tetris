@@ -18,12 +18,12 @@ class Tokenizer {
     string identifier();    // 返回当前字元的标识符
     int intVal();
     string stringVal();
+    int linePos;
 
    public:
     istream& inputStream;
     string currentLine, token;
     string::iterator it;
-    int linePos;
 
     bool readNextLine();
     bool nextValidLine();

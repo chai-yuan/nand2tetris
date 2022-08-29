@@ -7,9 +7,9 @@ using namespace std;
 enum class Segment { CONST, ARG, LOCAL, STATIC, THIS, THAT, POINTER, TEMP };
 enum class Command { ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT };
 
-class vmWriter {
+class VMWriter {
    public:
-    vmWriter(ostream& outputStream);
+    VMWriter(ostream& outputStream);
     void writePush(Segment segment, int index);
     void writePop(Segment segment, int index);
     void writeArithmetic(Command command);
@@ -24,32 +24,32 @@ class vmWriter {
     ostream& outputStream;
 };
 
-vmWriter::vmWriter(ostream& outputStream) : outputStream(outputStream) {}
-void vmWriter::writePush(Segment segment, int index) {
+VMWriter::VMWriter(ostream& outputStream) : outputStream(outputStream) {}
+void VMWriter::writePush(Segment segment, int index) {
     outputStream << "push " << segment2String(segment) << " " << index << endl;
 }
-void vmWriter::writePop(Segment segment, int index) {
+void VMWriter::writePop(Segment segment, int index) {
     outputStream << "pop " << segment2String(segment) << " " << index << endl;
 }
-void vmWriter::writeArithmetic(Command command) {
+void VMWriter::writeArithmetic(Command command) {
     outputStream << command2String(command) << endl;
 }
-void vmWriter::writeLabel(string label) {
+void VMWriter::writeLabel(string label) {
     outputStream << "label " << label << endl;
 }
-void vmWriter::writeGoto(string label) {
+void VMWriter::writeGoto(string label) {
     outputStream << "goto " << label << endl;
 }
-void vmWriter::writeIf(string label) {
+void VMWriter::writeIf(string label) {
     outputStream << "if-goto " << label << endl;
 }
-void vmWriter::writeCall(string name, int nArgs) {
+void VMWriter::writeCall(string name, int nArgs) {
     outputStream << "call " << name << " " << nArgs << endl;
 }
-void vmWriter::writeFunction(string name, int nLocals) {
+void VMWriter::writeFunction(string name, int nLocals) {
     outputStream << "function " << name << " " << nLocals << endl;
 }
-void vmWriter::writeReturn() {
+void VMWriter::writeReturn() {
     outputStream << "return" << endl;
 }
 

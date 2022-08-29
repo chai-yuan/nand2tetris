@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.nas": "assembly",
+        "string": "cpp",
+        "iosfwd": "cpp"
+    }
+}

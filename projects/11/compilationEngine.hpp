@@ -7,11 +7,12 @@
 #include <string>
 #include "globalDefine.h"
 #include "jackTokenizer.hpp"
+#include "vmWriter.hpp"
 using namespace std;
 
 class CompilationEngine {
    public:
-    CompilationEngine(Tokenizer& tokenizer, ostream& outputStream);
+    CompilationEngine(Tokenizer& tokenizer, VMWriter& vmWriter);
     void compileClass();
     void compileClassVarDec();
     void compileSubroutine();
@@ -31,7 +32,7 @@ class CompilationEngine {
     void compileSubroutineCall();
 
    private:
-    ostream& outputStream;
+    VMWriter& vmWriter;
     Tokenizer& tokenizer;
     void readKeyword(Keyword type, string name);
     void readSymbol(char symbol);
@@ -41,19 +42,17 @@ class CompilationEngine {
     void readType();
     void readOp();
     void readUnaryOp();
-    void writeToFile(string tag, string text = "");
+    // void writeToFile(string tag, string text = "");
     void getNextToken();
     void compilationError(string what);
 
     bool checkStatementKeyword(string key);
     bool checkOperator(char c);
 };
-CompilationEngine::CompilationEngine(Tokenizer& tokenizer,
-                                     ostream& outputStream)
-    : tokenizer(tokenizer), outputStream(outputStream) {}
+CompilationEngine::CompilationEngine(Tokenizer& tokenizer, VMWriter& vmWriter)
+    : tokenizer(tokenizer), vmWriter(vmWriter) {}
 void CompilationEngine::compileClass() {
     // 'class' className '{' classVarDec* subroutineDec* '}'
-    writeToFile("class");
     getNextToken();
     readKeyword(Keyword::kCLASS, "class");
     getNextToken();
@@ -74,7 +73,6 @@ void CompilationEngine::compileClass() {
         compileSubroutine();
 
     readSymbol('}');
-    writeToFile("/class");
 
     if (tokenizer.advance())  // 一个文件中只能有一个类
         compilationError(
@@ -82,7 +80,6 @@ void CompilationEngine::compileClass() {
 }
 void CompilationEngine::compileClassVarDec() {
     // ('static' | 'field') type varName (',' varName)* ';'
-    writeToFile("classVarDec");
 
     if (tokenizer.keyword() == Keyword::kFIELD)
         readKeyword(Keyword::kFIELD, "field");
@@ -104,13 +101,11 @@ void CompilationEngine::compileClassVarDec() {
     }
 
     readSymbol(';');
-    writeToFile("/classVarDec");
     getNextToken();
 }
 void CompilationEngine::compileSubroutine() {
     // ('constructor' | 'function' | 'method') ('void' | type) subroutineName
     // '(' parameterList ')' subroutineBody
-    writeToFile("subroutineDec");
 
     if (tokenizer.keyword() == Keyword::kCONSTRUCTOR)
         readKeyword(Keyword::kCONSTRUCTOR, "constructor");
@@ -137,12 +132,9 @@ void CompilationEngine::compileSubroutine() {
     readSymbol(')');
     getNextToken();
     compileSubroutineBody();
-
-    writeToFile("/subroutineDec");
 }
 void CompilationEngine::compileParameterList() {
     // ((type varName)(',' type varName)*)?
-    writeToFile("parameterList");
     if (tokenizer.tokenType() != TokenType::kSYMBOL) {
         readType();
         getNextToken();
@@ -159,11 +151,9 @@ void CompilationEngine::compileParameterList() {
             getNextToken();
         }
     }
-    writeToFile("/parameterList");
 }
 void CompilationEngine::compileVarDec() {
     // 'var' type varName (',' varName)* ';'
-    writeToFile("varDec");
 
     readKeyword(Keyword::kVAR, "var");
     getNextToken();
@@ -180,14 +170,12 @@ void CompilationEngine::compileVarDec() {
     }
     readSymbol(';');
 
-    writeToFile("/varDec");
     getNextToken();
 }
 void CompilationEngine::compileStatements() {
     // statements: statement*
     //    statement: letStatement | ifStatement | whileStatement | doStatement |
     //    returnStatement
-    writeToFile("statements");
 
     while (tokenizer.tokenType() == TokenType::kKEYWORD and
            checkStatementKeyword(tokenizer.token)) {
@@ -211,24 +199,19 @@ void CompilationEngine::compileStatements() {
                 break;
         }
     }
-
-    writeToFile("/statements");
 }
 void CompilationEngine::compileDo() {
     // 'do' subroutineCall ';'
-    writeToFile("doStatement");
 
     readKeyword(Keyword::kDO, "do");
     getNextToken();
     compileSubroutineCall();
     readSymbol(';');
 
-    writeToFile("/doStatement");
     getNextToken();
 }
 void CompilationEngine::compileLet() {
     // 'let' varName('[' expression ']')? '=' expression ';'
-    writeToFile("letStatement");
 
     readKeyword(Keyword::kLET, "let");
     getNextToken();
@@ -249,12 +232,10 @@ void CompilationEngine::compileLet() {
     compileExpression();
     readSymbol(';');
 
-    writeToFile("/letStatement");
     getNextToken();
 }
 void CompilationEngine::compileWhile() {
     // 'while' '(' expression ')' '{' statements '}'
-    writeToFile("whileStatement");
 
     readKeyword(Keyword::kWHILE, "while");
     getNextToken();
@@ -268,12 +249,10 @@ void CompilationEngine::compileWhile() {
     compileStatements();
     readSymbol('}');
 
-    writeToFile("/whileStatement");
     getNextToken();
 }
 void CompilationEngine::compileReturn() {
     // 'return' expression? ';'
-    writeToFile("returnStatement");
 
     readKeyword(Keyword::kRETURN, "return");
     getNextToken();
@@ -284,13 +263,12 @@ void CompilationEngine::compileReturn() {
         compileExpression();
 
     readSymbol(';');
-    writeToFile("/returnStatement");
+
     getNextToken();
 }
 void CompilationEngine::compileIf() {
     // 'if' '(' expression ')' '{' statements '}'
     //  ('else' '{' statements '}')?
-    writeToFile("ifStatement");
 
     readKeyword(Keyword::kIF, "if");
     getNextToken();
@@ -315,12 +293,9 @@ void CompilationEngine::compileIf() {
         readSymbol('}');
         getNextToken();
     }
-
-    writeToFile("/ifStatement");
 }
 void CompilationEngine::compileExpression() {
     // term (op term)*
-    writeToFile("expression");
     compileTerm();
     while (tokenizer.tokenType() == TokenType::kSYMBOL and
            checkOperator(tokenizer.symbol())) {
@@ -328,14 +303,11 @@ void CompilationEngine::compileExpression() {
         getNextToken();
         compileTerm();
     }
-
-    writeToFile("/expression");
 }
 void CompilationEngine::compileTerm() {
     //  integerConst | stringConst | keywordConst |
     //    varName | varName '[' expression ']' | subroutineCall |
     //    '(' expression ')' | unaryOp term
-    writeToFile("term");
 
     switch (tokenizer.tokenType()) {
         case TokenType::kINT_CONST:
@@ -390,7 +362,6 @@ void CompilationEngine::compileTerm() {
                 readSymbol(')');
                 getNextToken();
             }
-            writeToFile("/term");
             return;
         }
         case TokenType::kSYMBOL:
@@ -399,12 +370,11 @@ void CompilationEngine::compileTerm() {
                 getNextToken();
                 compileExpression();
                 readSymbol(')');
-
             } else {
                 readUnaryOp();
                 getNextToken();
                 compileTerm();
-                writeToFile("/term");
+
                 return;
             }
             break;
@@ -413,11 +383,9 @@ void CompilationEngine::compileTerm() {
     }
 
     getNextToken();
-    writeToFile("/term");
 }
 void CompilationEngine::compileExpressionList() {
     // (expression(',' expression)*)?
-    writeToFile("expressionList");
 
     if (tokenizer.tokenType() != TokenType::kSYMBOL ||
         (tokenizer.symbol() == '('))
@@ -428,13 +396,10 @@ void CompilationEngine::compileExpressionList() {
         getNextToken();
         compileExpression();
     }
-
-    writeToFile("/expressionList");
 }
 
 void CompilationEngine::compileSubroutineBody() {
     // '{' varDec* statements '}'
-    writeToFile("subroutineBody");
     readSymbol('{');
     getNextToken();
 
@@ -444,7 +409,6 @@ void CompilationEngine::compileSubroutineBody() {
 
     compileStatements();
     readSymbol('}');
-    writeToFile("/subroutineBody");
     getNextToken();
 }
 void CompilationEngine::compileSubroutineCall() {
@@ -479,32 +443,32 @@ void CompilationEngine::readKeyword(Keyword type, string name) {
         tokenizer.keyword() == type)
         writeToFile("keyword", tokenizer.token);
     else
-        compilationError("");
+        compilationError("unkown keyword");
 }
 void CompilationEngine::readSymbol(char symbol) {
     if (tokenizer.tokenType() == TokenType::kSYMBOL and
         tokenizer.symbol() == symbol)
         writeToFile("symbol", tokenizer.token);
     else
-        compilationError("");
+        compilationError("unkown symbol");
 }
 void CompilationEngine::readIdentifier() {
     if (tokenizer.tokenType() == TokenType::kIDENTIFIER)
         writeToFile("identifier", tokenizer.token);
     else
-        compilationError("");
+        compilationError("unkown identifier");
 }
 void CompilationEngine::readStringConst() {
     if (tokenizer.tokenType() == TokenType::kSTRING_CONST)
         writeToFile("stringConstant", tokenizer.stringVal());
     else
-        compilationError("");
+        compilationError("stringConstant");
 }
 void CompilationEngine::readIntConst() {
     if (tokenizer.tokenType() == TokenType::kINT_CONST)
         writeToFile("integerConstant", tokenizer.token);
     else
-        compilationError("");
+        compilationError("integerConstant");
 }
 void CompilationEngine::readType() {
     // int|char|boolean|className
@@ -548,20 +512,20 @@ void CompilationEngine::readUnaryOp() {
     compilationError("unary op");
 }
 
-void CompilationEngine::writeToFile(string tag, string text) {
-    if (text.empty())
-        outputStream << "<" << tag << ">" << endl;
-    else
-        outputStream << "<" << tag << ">"
-                     << " " << text << " "
-                     << "</" << tag << ">" << endl;
-}
+// void CompilationEngine::writeToFile(string tag, string text) {
+//     if (text.empty())
+//         outputStream << "<" << tag << ">" << endl;
+//     else
+//         outputStream << "<" << tag << ">"
+//                      << " " << text << " "
+//                      << "</" << tag << ">" << endl;
+// }
 void CompilationEngine::getNextToken() {
     if (!tokenizer.advance())
         compilationError("Could not read next token!");
 }
 void CompilationEngine::compilationError(string what) {
-    cerr << "Compilation ERROR: " << what << endl;
+    cerr << "ERROR: in line " << tokenizer.linePos << " :" << what << endl;
     exit(1);
 }
 
