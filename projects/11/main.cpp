@@ -4,7 +4,7 @@
 using namespace std;
 
 int main(int args, char** argv) {
-    string inputName("./ComplexArrays/");
+    string inputName("D:/project/nand2tetris/projects/11/Pong/");
     vector<string> inputNameList, outputNameList;
 
     if (FileHandler::isDir(inputName)) {

@@ -12,6 +12,7 @@ class Main {
 
     function void main() {
         var Array a, b, c;
+        // var int i;
         
         let a = Array.new(10);
         let b = Array.new(5);
@@ -35,6 +36,12 @@ class Main {
         do Output.printInt(c);
         do Output.println();
         
+        // while(i<10){
+        //     do Output.printInt(a[i]);
+        //     do Output.println();
+        //     let i=i+1;
+        // }
+
         let c = null;
 
         if (c = null) {

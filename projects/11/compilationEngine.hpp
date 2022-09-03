@@ -92,11 +92,10 @@ void CompilationEngine::compileClassVarDec() {
     else
         readKeyword(Keyword::kSTATIC, "static");
 
-    string type = tokenizer.identifier();
     Kind kind = keyWord2Kind(tokenizer.keyword());
-
     getNextToken();
     readType();
+    string type = tokenizer.identifier();
     getNextToken();
     readIdentifier();
     symbolTabel.define(tokenizer.identifier(), type, kind);

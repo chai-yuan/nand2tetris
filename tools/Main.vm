@@ -1,0 +1,24 @@
+function Main.fill 0
+label WHILE_EXP0
+push argument 1
+push constant 0
+gt
+not
+if-goto WHILE_END0
+push argument 1
+push constant 1
+sub
+pop argument 1
+push argument 1
+push argument 0
+add
+push constant 3
+call Array.new 1
+pop temp 0
+pop pointer 1
+push temp 0
+pop that 0
+goto WHILE_EXP0
+label WHILE_END0
+push constant 0
+return

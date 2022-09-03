@@ -33,6 +33,7 @@ SymbolTabel::SymbolTabel() {
 
 void SymbolTabel::startSubroutine() {
     subroutineScope.clear();
+    argCnt = varCnt = 0;
 }
 
 void SymbolTabel::define(string name, string type, Kind kind) {

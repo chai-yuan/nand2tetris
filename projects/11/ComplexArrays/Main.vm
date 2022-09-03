@@ -672,24 +672,24 @@ call Output.println 0
 pop temp 0
 push constant 0
 return
-function Main.double 3
+function Main.double 0
 push argument 0
 push constant 2
 call Math.multiply 2
 return
-function Main.fill 3
+function Main.fill 0
 label WHILETRUE6334
-push argument 2
+push argument 1
 push constant 0
 gt
 not
 if-goto WHILEFALSE26500
-push argument 2
+push argument 1
 push constant 1
 sub
-pop argument 2
-push argument 2
+pop argument 1
 push argument 1
+push argument 0
 add
 push constant 3
 call Array.new 1
