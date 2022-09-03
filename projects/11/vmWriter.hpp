@@ -8,6 +8,7 @@ enum class Segment { CONST, ARG, LOCAL, STATIC, THIS, THAT, POINTER, TEMP };
 enum class Command { ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT };
 string segment2String(Segment seg);
 string command2String(Command com);
+Segment kind2Segment(Kind kind);
 
 class VMWriter {
    public:
@@ -97,4 +98,17 @@ string command2String(Command com) {
             return "not";
     }
 }
+Segment kind2Segment(Kind kind) {
+    switch (kind) {
+        case Kind::STATIC:
+            return Segment::STATIC;
+        case Kind::FIELD:
+            return Segment::THIS;
+        case Kind::ARG:
+            return Segment::ARG;
+        case Kind::VAR:
+            return Segment::LOCAL;
+    }
+}
+
 #endif

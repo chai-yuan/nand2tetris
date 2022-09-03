@@ -245,21 +245,37 @@ void CompilationEngine::compileLet() {
     readKeyword(Keyword::kLET, "let");
     getNextToken();
     readIdentifier();
+    string varName = tokenizer.identifier();
     getNextToken();
 
+    bool isArray = false;
     if (tokenizer.tokenType() == TokenType::kSYMBOL and
         tokenizer.symbol() == '[') {
         readSymbol('[');
         getNextToken();
         compileExpression();
+        vmWriter.writePush(kind2Segment(symbolTabel.kindOf(varName)),
+                           symbolTabel.indexOf(varName));
+        vmWriter.writeArithmetic(Command::ADD);  // 通过add获得准确内存地址
         readSymbol(']');
         getNextToken();
+        isArray = true;
     }
 
     readSymbol('=');
     getNextToken();
     compileExpression();
     readSymbol(';');
+
+    if (!isArray)
+        vmWriter.writePop(kind2Segment(symbolTabel.kindOf(varName)),
+                          symbolTabel.indexOf(varName));
+    else {
+        vmWriter.writePop(Segment::TEMP, 0);  // 如果是数组，将结果临时保存
+        vmWriter.writePop(Segment::POINTER, 1);  // ----------------
+        vmWriter.writePush(Segment::TEMP, 0);
+        vmWriter.writePop(Segment::THAT, 0);
+    }
 
     getNextToken();
 }
@@ -329,6 +345,40 @@ void CompilationEngine::compileExpression() {
     while (tokenizer.tokenType() == TokenType::kSYMBOL and
            checkOperator(tokenizer.symbol())) {
         readOp();
+        switch (tokenizer.symbol()) {
+            case '+':
+                vmWriter.writeArithmetic(Command::ADD);
+                break;
+            case '-':
+                vmWriter.writeArithmetic(Command::SUB);
+                break;
+            case '*':
+                vmWriter.writeCall("Math.multiply", 2);
+                break;
+            case '/':
+                vmWriter.writeCall("Math.divide", 2);
+                break;
+            case '&':
+                vmWriter.writeArithmetic(Command::AND);
+                break;
+            case '|':
+                vmWriter.writeArithmetic(Command::OR);
+                break;
+            case '<':
+                vmWriter.writeArithmetic(Command::LT);
+                break;
+            case '>':
+                vmWriter.writeArithmetic(Command::GT);
+                break;
+            case '=':
+                vmWriter.writeArithmetic(Command::EQ);
+                break;
+            case '~':
+                vmWriter.writeArithmetic(Command::NOT);
+                break;
+            default:
+                break;
+        }
         getNextToken();
         compileTerm();
     }
