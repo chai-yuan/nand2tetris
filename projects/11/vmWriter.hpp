@@ -6,6 +6,8 @@ using namespace std;
 
 enum class Segment { CONST, ARG, LOCAL, STATIC, THIS, THAT, POINTER, TEMP };
 enum class Command { ADD, SUB, NEG, EQ, GT, LT, AND, OR, NOT };
+string segment2String(Segment seg);
+string command2String(Command com);
 
 class VMWriter {
    public:

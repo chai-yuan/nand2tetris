@@ -7,6 +7,7 @@
 #include <string>
 #include "globalDefine.h"
 #include "jackTokenizer.hpp"
+#include "symbolTabel.hpp"
 #include "vmWriter.hpp"
 using namespace std;
 
@@ -34,6 +35,9 @@ class CompilationEngine {
    private:
     VMWriter& vmWriter;
     Tokenizer& tokenizer;
+    SymbolTabel symbolTabel;
+    string nowClassName, nowFunctionName;
+    Keyword nowSubroutineType;
     void readKeyword(Keyword type, string name);
     void readSymbol(char symbol);
     void readIdentifier();
@@ -57,6 +61,7 @@ void CompilationEngine::compileClass() {
     readKeyword(Keyword::kCLASS, "class");
     getNextToken();
     readIdentifier();
+    nowClassName = tokenizer.identifier();  // 获取当前类的名称
     getNextToken();
     readSymbol('{');
     getNextToken();
@@ -86,10 +91,14 @@ void CompilationEngine::compileClassVarDec() {
     else
         readKeyword(Keyword::kSTATIC, "static");
 
+    string type = tokenizer.identifier();
+    Kind kind = keyWord2Kind(tokenizer.keyword());
+
     getNextToken();
     readType();
     getNextToken();
     readIdentifier();
+    symbolTabel.define(tokenizer.identifier(), type, kind);
     getNextToken();
 
     while (tokenizer.tokenType() == TokenType::kSYMBOL and
@@ -97,6 +106,7 @@ void CompilationEngine::compileClassVarDec() {
         readSymbol(',');
         getNextToken();
         readIdentifier();
+        symbolTabel.define(tokenizer.identifier(), type, kind);
         getNextToken();
     }
 
@@ -106,28 +116,37 @@ void CompilationEngine::compileClassVarDec() {
 void CompilationEngine::compileSubroutine() {
     // ('constructor' | 'function' | 'method') ('void' | type) subroutineName
     // '(' parameterList ')' subroutineBody
+    symbolTabel.startSubroutine();
 
     if (tokenizer.keyword() == Keyword::kCONSTRUCTOR)
         readKeyword(Keyword::kCONSTRUCTOR, "constructor");
     else if (tokenizer.keyword() == Keyword::kFUNCTION)
         readKeyword(Keyword::kFUNCTION, "function");
-    else
+    else {
+        symbolTabel.define("this", nowClassName, Kind::ARG);
         readKeyword(Keyword::kMETHOD, "method");
+    }
+    nowSubroutineType = tokenizer.keyword();  // 得到当前函数类型
 
     getNextToken();
 
+    string returnType;
     if (tokenizer.tokenType() == TokenType::kKEYWORD and
-        tokenizer.keyword() == Keyword::kVOID)
+        tokenizer.keyword() == Keyword::kVOID) {
         readKeyword(Keyword::kVOID, "void");
-    else
+        returnType = "void";
+    } else {
         readType();
+        returnType = tokenizer.identifier();
+    }
 
     getNextToken();
-    readIdentifier();
+    readIdentifier();  // 获得函数名
+    nowFunctionName = nowClassName + string(".") + tokenizer.identifier();
     getNextToken();
     readSymbol('(');
     getNextToken();
-    compileParameterList();  // tag
+    compileParameterList();
 
     readSymbol(')');
     getNextToken();
@@ -135,10 +154,14 @@ void CompilationEngine::compileSubroutine() {
 }
 void CompilationEngine::compileParameterList() {
     // ((type varName)(',' type varName)*)?
+    Kind kind = Kind::ARG;
+
     if (tokenizer.tokenType() != TokenType::kSYMBOL) {
         readType();
+        string type = tokenizer.identifier();
         getNextToken();
         readIdentifier();
+        symbolTabel.define(tokenizer.identifier(), type, kind);
         getNextToken();
 
         while (tokenizer.tokenType() == TokenType::kSYMBOL and
@@ -146,8 +169,10 @@ void CompilationEngine::compileParameterList() {
             readSymbol(',');
             getNextToken();
             readType();
+            type = tokenizer.identifier();
             getNextToken();
             readIdentifier();
+            symbolTabel.define(tokenizer.identifier(), type, kind);
             getNextToken();
         }
     }
@@ -156,16 +181,20 @@ void CompilationEngine::compileVarDec() {
     // 'var' type varName (',' varName)* ';'
 
     readKeyword(Keyword::kVAR, "var");
+    Kind kind = Kind::VAR;
     getNextToken();
     readType();
+    string type = tokenizer.identifier();
     getNextToken();
     readIdentifier();
+    symbolTabel.define(tokenizer.identifier(), type, kind);
     getNextToken();
     while (tokenizer.tokenType() == TokenType::kSYMBOL and
            tokenizer.symbol() == ',') {
         readSymbol(',');
         getNextToken();
         readIdentifier();
+        symbolTabel.define(tokenizer.identifier(), type, kind);
         getNextToken();
     }
     readSymbol(';');
@@ -407,6 +436,17 @@ void CompilationEngine::compileSubroutineBody() {
            tokenizer.keyword() == Keyword::kVAR)
         compileVarDec();
 
+    int localVarNums = symbolTabel.varCount(Kind::VAR);
+    vmWriter.writeFunction(nowFunctionName, localVarNums);
+    if (nowSubroutineType == Keyword::kCONSTRUCTOR) {
+        vmWriter.writePush(Segment::CONST, symbolTabel.varCount(Kind::FIELD));
+        vmWriter.writeCall("Memory.alloc", 1);   // 申请内存
+        vmWriter.writePop(Segment::POINTER, 0);  // 保存到this
+    } else if (nowSubroutineType == Keyword::kMETHOD) {
+        vmWriter.writePush(Segment::ARG, 0);  // 将this指针导入
+        vmWriter.writePop(Segment::POINTER, 0);
+    }
+
     compileStatements();
     readSymbol('}');
     getNextToken();
@@ -439,35 +479,25 @@ void CompilationEngine::compileSubroutineCall() {
 }
 
 void CompilationEngine::readKeyword(Keyword type, string name) {
-    if (tokenizer.tokenType() == TokenType::kKEYWORD and
-        tokenizer.keyword() == type)
-        writeToFile("keyword", tokenizer.token);
-    else
+    if (tokenizer.tokenType() != TokenType::kKEYWORD or
+        tokenizer.keyword() != type)
         compilationError("unkown keyword");
 }
 void CompilationEngine::readSymbol(char symbol) {
-    if (tokenizer.tokenType() == TokenType::kSYMBOL and
-        tokenizer.symbol() == symbol)
-        writeToFile("symbol", tokenizer.token);
-    else
+    if (tokenizer.tokenType() != TokenType::kSYMBOL or
+        tokenizer.symbol() != symbol)
         compilationError("unkown symbol");
 }
 void CompilationEngine::readIdentifier() {
-    if (tokenizer.tokenType() == TokenType::kIDENTIFIER)
-        writeToFile("identifier", tokenizer.token);
-    else
+    if (tokenizer.tokenType() != TokenType::kIDENTIFIER)
         compilationError("unkown identifier");
 }
 void CompilationEngine::readStringConst() {
-    if (tokenizer.tokenType() == TokenType::kSTRING_CONST)
-        writeToFile("stringConstant", tokenizer.stringVal());
-    else
+    if (tokenizer.tokenType() != TokenType::kSTRING_CONST)
         compilationError("stringConstant");
 }
 void CompilationEngine::readIntConst() {
-    if (tokenizer.tokenType() == TokenType::kINT_CONST)
-        writeToFile("integerConstant", tokenizer.token);
-    else
+    if (tokenizer.tokenType() != TokenType::kINT_CONST)
         compilationError("integerConstant");
 }
 void CompilationEngine::readType() {
@@ -495,7 +525,7 @@ void CompilationEngine::readOp() {
     if (tokenizer.tokenType() == TokenType::kSYMBOL) {
         char sym = tokenizer.symbol();
         if (checkOperator(sym)) {
-            writeToFile("symbol", tokenizer.token);
+            // writeToFile("symbol", tokenizer.token);
             return;
         }
     }
@@ -505,7 +535,7 @@ void CompilationEngine::readUnaryOp() {
     if (tokenizer.tokenType() == TokenType::kSYMBOL) {
         char sym = tokenizer.symbol();
         if (sym == '-' || sym == '~') {
-            writeToFile("symbol", tokenizer.token);
+            // writeToFile("symbol", tokenizer.token);
             return;
         }
     }

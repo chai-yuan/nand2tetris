@@ -6,6 +6,7 @@
 #include <vector>
 #include "compilationEngine.hpp"
 #include "jackTokenizer.hpp"
+#include "vmWriter.hpp"
 using namespace std;
 
 class Analyzer {
@@ -26,7 +27,8 @@ void Analyzer::analyzerCode() {
         ofstream outputFile(outputNameList[i]);
 
         Tokenizer tokenizer(inputFile);
-        CompilationEngine engine(tokenizer, outputFile);
+        VMWriter vmWriter(outputFile);
+        CompilationEngine engine(tokenizer, vmWriter);
         engine.compileClass();
 
         inputFile.close();

@@ -4,7 +4,7 @@
 using namespace std;
 
 int main(int args, char** argv) {
-    string inputName("./Square/");
+    string inputName("./Seven/");
     vector<string> inputNameList, outputNameList;
 
     if (FileHandler::isDir(inputName)) {
@@ -16,7 +16,7 @@ int main(int args, char** argv) {
     }
 
     for (auto iName : inputNameList) {
-        outputNameList.push_back(FileHandler::changeExtension(iName, ".txml"));
+        outputNameList.push_back(FileHandler::changeExtension(iName, ".vm"));
     }
 
     Analyzer analyzer(inputNameList, outputNameList);

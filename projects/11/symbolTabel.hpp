@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include "globalDefine.h"
 using namespace std;
 enum class Kind { STATIC, FIELD, ARG, VAR, NONE };
 struct symboltabel {
@@ -93,6 +94,17 @@ int SymbolTabel::indexOf(string name) {
         return subroutineScope[name].index;
     else
         return -1;
+}
+
+Kind keyWord2Kind(Keyword Key) {
+    switch (Key) {
+        case Keyword::kSTATIC:
+            return Kind::STATIC;
+        case Keyword::kFIELD:
+            return Kind::FIELD;
+        case Keyword::kVAR:
+            return Kind::VAR;
+    }
 }
 
 #endif
