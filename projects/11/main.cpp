@@ -4,7 +4,7 @@
 using namespace std;
 
 int main(int args, char** argv) {
-    string inputName("./Seven/");
+    string inputName("./ComplexArrays/");
     vector<string> inputNameList, outputNameList;
 
     if (FileHandler::isDir(inputName)) {

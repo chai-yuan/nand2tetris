@@ -38,6 +38,7 @@ class CompilationEngine {
     SymbolTabel symbolTabel;
     string nowClassName, nowFunctionName;
     Keyword nowSubroutineType;
+    int argNum;
     void readKeyword(Keyword type, string name);
     void readSymbol(char symbol);
     void readIdentifier();
@@ -237,6 +238,7 @@ void CompilationEngine::compileDo() {
     compileSubroutineCall();
     readSymbol(';');
 
+    vmWriter.writePop(Segment::TEMP, 0);  // 忽略返回值
     getNextToken();
 }
 void CompilationEngine::compileLet() {
@@ -281,18 +283,25 @@ void CompilationEngine::compileLet() {
 }
 void CompilationEngine::compileWhile() {
     // 'while' '(' expression ')' '{' statements '}'
+    string trueLabel = "WHILETRUE" + to_string(rand()),
+           falseLabel = "WHILEFALSE" + to_string(rand());
 
     readKeyword(Keyword::kWHILE, "while");
     getNextToken();
     readSymbol('(');
     getNextToken();
+    vmWriter.writeLabel(trueLabel);
     compileExpression();
+    vmWriter.writeArithmetic(Command::NOT);
+    vmWriter.writeIf(falseLabel);
     readSymbol(')');
     getNextToken();
     readSymbol('{');
     getNextToken();
     compileStatements();
     readSymbol('}');
+    vmWriter.writeGoto(trueLabel);
+    vmWriter.writeLabel(falseLabel);
 
     getNextToken();
 }
@@ -302,32 +311,41 @@ void CompilationEngine::compileReturn() {
     readKeyword(Keyword::kRETURN, "return");
     getNextToken();
 
+    bool haveExpression = false;
     if (tokenizer.tokenType() != TokenType::kSYMBOL ||
         (tokenizer.tokenType() == TokenType::kSYMBOL &&
          tokenizer.symbol() != ';'))
-        compileExpression();
+        compileExpression(), haveExpression = true;  // -----------
 
     readSymbol(';');
+    if (!haveExpression)
+        vmWriter.writePush(Segment::CONST, 0);
+    vmWriter.writeReturn();
 
     getNextToken();
 }
 void CompilationEngine::compileIf() {
     // 'if' '(' expression ')' '{' statements '}'
     //  ('else' '{' statements '}')?
-
+    string elseLabel = "IFFALSE" + to_string(rand()),
+           continueLabel = "CONTINUE" + to_string(rand());
     readKeyword(Keyword::kIF, "if");
     getNextToken();
     readSymbol('(');
     getNextToken();
     compileExpression();
     readSymbol(')');
+    vmWriter.writeArithmetic(Command::NOT);
+    vmWriter.writeIf(elseLabel);
     getNextToken();
     readSymbol('{');
     getNextToken();
     compileStatements();
     readSymbol('}');
+    vmWriter.writeGoto(continueLabel);
     getNextToken();
 
+    vmWriter.writeLabel(elseLabel);
     if (tokenizer.tokenType() == TokenType::kKEYWORD and
         tokenizer.keyword() == Keyword::kELSE) {
         readKeyword(Keyword::kELSE, "else");
@@ -338,6 +356,7 @@ void CompilationEngine::compileIf() {
         readSymbol('}');
         getNextToken();
     }
+    vmWriter.writeLabel(continueLabel);
 }
 void CompilationEngine::compileExpression() {
     // term (op term)*
@@ -345,7 +364,11 @@ void CompilationEngine::compileExpression() {
     while (tokenizer.tokenType() == TokenType::kSYMBOL and
            checkOperator(tokenizer.symbol())) {
         readOp();
-        switch (tokenizer.symbol()) {
+        char op = tokenizer.symbol();
+        getNextToken();
+        compileTerm();
+
+        switch (op) {
             case '+':
                 vmWriter.writeArithmetic(Command::ADD);
                 break;
@@ -379,68 +402,106 @@ void CompilationEngine::compileExpression() {
             default:
                 break;
         }
-        getNextToken();
-        compileTerm();
+        // compileTerm();
     }
 }
 void CompilationEngine::compileTerm() {
     //  integerConst | stringConst | keywordConst |
     //    varName | varName '[' expression ']' | subroutineCall |
     //    '(' expression ')' | unaryOp term
-
+    string constString;
     switch (tokenizer.tokenType()) {
         case TokenType::kINT_CONST:
             readIntConst();
+            vmWriter.writePush(Segment::CONST, tokenizer.intVal());
             break;
         case TokenType::kSTRING_CONST:
             readStringConst();
+            constString = tokenizer.stringVal();
+            vmWriter.writePush(Segment::CONST, constString.length());
+            vmWriter.writeCall("String.new", 1);
+            for (auto c : constString) {
+                vmWriter.writePush(Segment::CONST, (int)c);
+                vmWriter.writeCall("String.appendChar", 2);
+            }
             break;
         case TokenType::kKEYWORD: {
             switch (tokenizer.keyword()) {
                 case Keyword::kTRUE:
                     readKeyword(Keyword::kTRUE, "true");
+                    vmWriter.writePush(Segment::CONST, 0);  // ------
+                    vmWriter.writeArithmetic(Command::NOT);
                     break;
                 case Keyword::kFALSE:
                     readKeyword(Keyword::kFALSE, "false");
+                    vmWriter.writePush(Segment::CONST, 0);
                     break;
                 case Keyword::kNULL:
                     readKeyword(Keyword::kNULL, "null");
+                    vmWriter.writePush(Segment::CONST, 0);
                     break;
                 case Keyword::kTHIS:
                     readKeyword(Keyword::kTHIS, "this");
+                    vmWriter.writePush(Segment::POINTER, 0);
                     break;
             }
             break;
         }
         case TokenType::kIDENTIFIER: {
             readIdentifier();
+            string id = tokenizer.identifier();
             getNextToken();
             if (tokenizer.tokenType() == TokenType::kSYMBOL and
                 tokenizer.symbol() == '[') {
                 readSymbol('[');
                 getNextToken();
                 compileExpression();
+                vmWriter.writePush(kind2Segment(symbolTabel.kindOf(id)),
+                                   symbolTabel.indexOf(id));
+                vmWriter.writeArithmetic(Command::ADD);
                 readSymbol(']');
                 getNextToken();
+                vmWriter.writePop(Segment::POINTER, 1);
+                vmWriter.writePush(Segment::THAT, 0);
             } else if (tokenizer.tokenType() == TokenType::kSYMBOL and
                        tokenizer.symbol() == '(') {
                 readSymbol('(');
                 getNextToken();
+                vmWriter.writePush(Segment::POINTER, 0);
                 compileExpressionList();
                 readSymbol(')');
+                vmWriter.writeCall(nowClassName + "." + id, argNum + 1);
                 getNextToken();
             } else if (tokenizer.tokenType() == TokenType::kSYMBOL and
                        tokenizer.symbol() == '.') {
+                // 如果不是内置的
+                bool buildIn = true;
+                if (symbolTabel.kindOf(id) != Kind::NONE)
+                    vmWriter.writePush(kind2Segment(symbolTabel.kindOf(id)),
+                                       symbolTabel.indexOf(id)),
+                        buildIn = false;
+
                 readSymbol('.');
                 getNextToken();
                 readIdentifier();
+                string subroutineName = tokenizer.identifier();
                 getNextToken();
                 readSymbol('(');
                 getNextToken();
                 compileExpressionList();
                 readSymbol(')');
+
+                if (!buildIn)
+                    vmWriter.writeCall(
+                        symbolTabel.typeOf(id) + "." + subroutineName,
+                        argNum + 1);
+                else
+                    vmWriter.writeCall(id + "." + subroutineName, argNum);
+
                 getNextToken();
-            }
+            } else
+                vmWriter.writePush(kind2Segment(symbolTabel.kindOf(id)),
+                                   symbolTabel.indexOf(id));
             return;
         }
         case TokenType::kSYMBOL:
@@ -450,9 +511,14 @@ void CompilationEngine::compileTerm() {
                 compileExpression();
                 readSymbol(')');
             } else {
+                char uop = tokenizer.symbol();
                 readUnaryOp();
                 getNextToken();
                 compileTerm();
+                if (uop == '-') {
+                    vmWriter.writeArithmetic(Command::NEG);
+                } else
+                    vmWriter.writeArithmetic(Command::NOT);
 
                 return;
             }
@@ -465,13 +531,14 @@ void CompilationEngine::compileTerm() {
 }
 void CompilationEngine::compileExpressionList() {
     // (expression(',' expression)*)?
-
+    argNum = 0;
     if (tokenizer.tokenType() != TokenType::kSYMBOL ||
         (tokenizer.symbol() == '('))
-        compileExpression();
+        compileExpression(), argNum++;
     while (tokenizer.tokenType() == TokenType::kSYMBOL &&
            tokenizer.symbol() == ',') {
         readSymbol(',');
+        argNum++;
         getNextToken();
         compileExpression();
     }
@@ -506,23 +573,39 @@ void CompilationEngine::compileSubroutineCall() {
     //   (className | varName) '.' subroutineName '(' expression ')'
 
     readIdentifier();
+    string callName = tokenizer.identifier();
     getNextToken();
 
     if (tokenizer.tokenType() == TokenType::kSYMBOL &&
         tokenizer.symbol() == '(') {
         readSymbol('(');
         getNextToken();
+        vmWriter.writePush(Segment::POINTER, 0);
         compileExpressionList();
         readSymbol(')');
+        vmWriter.writeCall(nowClassName + "." + callName, argNum + 1);
     } else {
         readSymbol('.');
         getNextToken();
         readIdentifier();
+        string subroutineName = tokenizer.identifier();
+        bool buildIn = true;
+        if (symbolTabel.kindOf(callName) != Kind::NONE)
+            vmWriter.writePush(kind2Segment(symbolTabel.kindOf(callName)),
+                               symbolTabel.indexOf(callName)),
+                buildIn = false;
+
         getNextToken();
         readSymbol('(');
         getNextToken();
         compileExpressionList();
         readSymbol(')');
+        if (!buildIn)
+            vmWriter.writeCall(
+                symbolTabel.typeOf(callName) + "." + subroutineName,
+                argNum + 1);
+        else
+            vmWriter.writeCall(callName + "." + subroutineName, argNum);
     }
 
     getNextToken();
